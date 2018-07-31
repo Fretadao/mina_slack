@@ -1,38 +1,37 @@
 require 'json'
+require 'net/http'
+require 'openssl'
 
 # ## Settings
 # Any and all of these settings can be overriden in your `deploy.rb`.
 
 # ### slack_api_token
-set_default :slack_url, ''
+set :slack_url, ''
 
 # ### slack_channels
 # Sets the channels where notifications will be sent to.
-set_default :slack_channels, []
+set :slack_channels, []
+
+set :slack_username, 'Mina'
+
+set :slack_environment, -> { fetch(:rails_env) }
 
 # ### slack_username
-# Sets the notification 'from' user label
-set_default :slack_username, 'Deploy'
+set :slack_deployer, -> { ENV['GIT_AUTHOR_NAME'] || %x[git config user.name].chomp  }
 
-# ### slack_author
-# Sets the deployment author name
-set_default :slack_author, 'Someone'
-
-# ### slack_link_names
-# Sets the deployment author name
-set_default :slack_link_names, 1
+#### slack_link_names
+set :slack_link_names, 1
 
 # ### slack_parse
-# Sets the deployment author name
-set_default :slack_parse, 'full'
+set :slack_parse, 'full'
 
 # ### icon_url
 # URL to an image to use as the icon for this message
-set_default :slack_icon_url, ''
+set :slack_icon_url, ''
 
 # ### icon_emoji
 # Sets emoji to use as the icon for this message. Overrides `slack_icon_url`
-set_default :slack_icon_emoji, ':slack:'
+set :slack_icon_emoji, ':rocket:'
 
 # ## Control Tasks
 namespace :slack do
@@ -40,10 +39,9 @@ namespace :slack do
   # ## slack:notify_deploy_started
   desc "Send slack notification about new deploy start"
   task :notify_deploy_started => :environment do
-    queue  %[echo "-----> Sending start notification to Slack"]
-    text = "#{slack_author} is deploying #{application}..."
+    text = "#{fetch(:slack_deployer)} has started deploying branch #{fetch(:branch)} of #{fetch(:application)} to #{fetch(:slack_environment)}"
 
-    for channel in slack_channels
+    for channel in fetch(:slack_channels)
       send_message(
         channel: channel,
         text:    text
@@ -54,22 +52,18 @@ namespace :slack do
   # ## slack:notify_deploy_finished
   desc "Send slack notification about deploy finish"
   task :notify_deploy_finished => :environment do
-    queue  %[echo "-----> Sending finish notification to Slack"]
+    text = "#{fetch(:slack_deployer)} has finished deploying branch #{fetch(:branch)} of #{fetch(:application)} to #{fetch(:slack_environment)}"
 
-    text  = "#{slack_author} finished deploying #{application}."
-    text += " See it here: http://#{domain}" if domain != nil
-
-    for channel in slack_channels
+    for channel in fetch(:slack_channels)
       send_message(
         channel:     channel,
-        text:        text,
-        attachments: attachments
+        text:        text
       )
     end
   end
 
   def send_message(params = {})
-    uri = URI.parse(slack_url)
+    uri = URI.parse(fetch(:slack_url))
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     http.verify_mode = OpenSSL::SSL::VERIFY_NONE
@@ -77,9 +71,9 @@ namespace :slack do
     payload = {
       "parse"       => "full",
       "channel"     => params[:channel],
-      "username"    => slack_username,
+      "username"    => fetch(:slack_username),
       "text"        => params[:text],
-      "icon_emoji"  => slack_icon_emoji
+      "icon_emoji"  => fetch(:slack_icon_emoji)
     }
 
     # Create the post request and setup the form data
