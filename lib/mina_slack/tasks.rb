@@ -4,8 +4,7 @@ require 'json'
 # Any and all of these settings can be overriden in your `deploy.rb`.
 
 # ### slack_api_token
-# Sets the slack api auth token.
-set_default :slack_api_token, ''
+set_default :slack_url, ''
 
 # ### slack_channels
 # Sets the channels where notifications will be sent to.
@@ -70,7 +69,24 @@ namespace :slack do
   end
 
   def send_message(params = {})
-    queue %[curl -X POST https://slack.com/api/chat.postMessage -d "token=#{slack_api_token}&channel=#{params[:channel]}&username=#{slack_username}&text=#{params[:text]}&attachments='[{"fields": [{"value": "Value"}]}]'&parse=#{slack_parse}&link_names=#{link_names}&icon_url=#{slack_icon_url}&icon_emoji=#{slack_icon_emoji}" --silent > /dev/null]
-  end
+    uri = URI.parse(slack_url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
+    payload = {
+      "parse"       => "full",
+      "channel"     => params[:channel],
+      "username"    => slack_username,
+      "text"        => params[:text],
+      "icon_emoji"  => slack_icon_emoji
+    }
+
+    # Create the post request and setup the form data
+    request = Net::HTTP::Post.new(uri.request_uri)
+    request.set_form_data(:payload => payload.to_json)
+
+    # Make the actual request to the API
+    http.request(request)
+  end
 end
