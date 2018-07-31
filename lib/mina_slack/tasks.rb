@@ -38,7 +38,7 @@ namespace :slack do
 
   # ## slack:notify_deploy_started
   desc "Send slack notification about new deploy start"
-  task :notify_deploy_started => :environment do
+  task :notify_deploy_started => :local_environment do
     text = "#{fetch(:slack_deployer)} has started deploying branch #{fetch(:branch)} of #{fetch(:application)} to #{fetch(:slack_environment)}"
 
     for channel in fetch(:slack_channels)
@@ -51,7 +51,7 @@ namespace :slack do
 
   # ## slack:notify_deploy_finished
   desc "Send slack notification about deploy finish"
-  task :notify_deploy_finished => :environment do
+  task :notify_deploy_finished => :local_environment do
     text = "#{fetch(:slack_deployer)} has finished deploying branch #{fetch(:branch)} of #{fetch(:application)} to #{fetch(:slack_environment)}"
 
     for channel in fetch(:slack_channels)
